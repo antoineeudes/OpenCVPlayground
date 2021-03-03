@@ -34,10 +34,12 @@
 #' - Utilise l'alias `np` pour désigner le module `numpy` et `plt` pour le module `pyplot`.
 
 # %%
-import PIL
+from PIL import Image, ImageFilter
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+import os
+import scipy.signal as sg
 
 # %%
 #' ## Charger et afficher une image
@@ -51,18 +53,24 @@ from matplotlib import pyplot as plt
 #' Tu peux utiliser `plt.figure(figsize=(15,15))` avant d'afficher une image pour que cette dernière
 #' s'affiche mieux.
 
-# TODO
+IMAGE_FILENAME = "The-Sandworm-Riders-73933.jpg"
+IMAGE_PATH = os.path.join("images", IMAGE_FILENAME)
+
+image = cv2.imread(IMAGE_PATH, cv2.IMREAD_COLOR)
+plt.imshow(image)
+plt.show()
 
 # %%
 #' Récupère le type de l'objet img et note que c'est bel et bien un objet de type `numpy.ndarray`,
 #' cela signifie qu'en plus des fonctions opencv, tu peux aussi utiliser les fonctions numpy dessus.
 
-# TODO
+assert type(image) == np.ndarray
 
 # %%
 #' Récupère la `shape` de ton image, et le nombre de pixel qu'elle contient.
 
-# TODO
+(height, width, _) = image.shape
+number_of_pixels = height * width
 
 # %%
 #' Comme tu l'as vu précédemment l'image source est orange plutôt que bleu, en effet opencv utilise
@@ -70,18 +78,24 @@ from matplotlib import pyplot as plt
 #'
 #' Tu sais donc convertir l'image RGB en BGR pour qu'elle s'affiche bien.
 
-# TODO
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+plt.imshow(image)
+plt.show()
 
 # %%
 #' - Tu sais extraire les canaux b, g et r du l'image.
 #' - Tu sais afficher la composante rouge en échelle de gris grâce à matplotlib.
 
-# TODO
+image_red_channel = image[:, :, 0]
+image_green_channel = image[:, :, 1]
+image_blue_channel = image[:, :, 2]
+
+plt.imshow(image_red_channel, cmap="gray")
+plt.show()
 
 # %%
 #' Tu sais copier une image afin de pouvoir modifier la nouvelle image sans changer l'image de départ.
-
-# TODO
+image_copy = image.copy()
 
 # %%
 #' ## Manipulations de l'image
@@ -93,13 +107,15 @@ from matplotlib import pyplot as plt
 #'
 #' Hint : L'échelle sur l'image représente la numérotation des pixels, ça pourra t'aider. Mais rappel
 #' toi que l'on travail sur une matrice.
-
-# TODO
+image_cropped = image[50:150, 675:775]
+plt.imshow(image_cropped)
+plt.show()
 
 # %%
 #' Tu sais réduire la taille de cette image ainsi créée à 64x64
-
-# TODO
+image_resized = cv2.resize(image_cropped, dsize=(64, 64), interpolation=cv2.INTER_CUBIC)
+plt.imshow(image_resized)
+plt.show()
 
 # %%
 #' En utilisant l'image de la tête du guerrier je sais :
@@ -114,27 +130,39 @@ from matplotlib import pyplot as plt
 #'
 #' Hint : https://stackoverflow.com/questions/26506204/replace-sub-part-of-matrix-by-another-small-matrix-in-numpy
 
-# TODO
 
-# %%
-# tmp_head_gray = np.zeros((tmp_head.shape[0], tmp_head.shape[1], 3))
-#
-# for i in range(3):
-#     tmp_head_gray[:, :, i] = tmp_head
-
-# TODO
+image_rotated = np.rot90(image_cropped)
+image_rotated = image_rotated.sum(axis=2) / 3
+image_rotated = np.expand_dims(image_rotated, axis=2)
+image_rotated = np.repeat(image_rotated, 3, axis=2)
+image_copy[50:150, 675:775] = image_rotated
+plt.imshow(image_copy)
+plt.show()
 
 # %%
 #' Tu sais, avec cv2, retourner verticalement, horizontalement et transposer l'image.
 
-# TODO
+vertically_flipped_image = cv2.flip(image_copy, 0)
+plt.imshow(vertically_flipped_image)
+plt.show()
+
+horizontally_flipped_image = cv2.flip(image_copy, 1)
+plt.imshow(horizontally_flipped_image)
+plt.show()
+
+transposed_image = cv2.transpose(image_copy)
+plt.imshow(transposed_image)
+plt.show()
+
 
 # %%
 #' ### Appliquer des filtres
 #'
 #' Je sais appliquer un filtre gaussien (de taille 11) à l'image.
 
-# TODO
+image_smoothed = cv2.GaussianBlur(image_copy, (11, 11), 1)
+plt.imshow(image_smoothed)
+plt.show()
 
 # %%
 #' #### Tu sais appliquer n'importe quel filtre à une image
@@ -152,25 +180,46 @@ from matplotlib import pyplot as plt
 #' permet de revenir sur une dimension.
 #' - Tu peux utiliser `plt.figure(figsize=(15,15))` avant d'afficher une image pour que cette dernière s'affiche mieux.
 
-# TODO
+image_greyscale = np.sum(image, axis=2) / 3
+image_greyscale_smoothed = cv2.GaussianBlur(image_greyscale, (11, 11), 1)
+edge_detection_kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
+image_convolved = sg.convolve(
+    image_greyscale_smoothed, edge_detection_kernel, mode="same"
+)
+image_convolved = np.clip(image_convolved, 0, 255)
+plt.imshow(image_convolved, cmap="gray")
+plt.show()
 
 # %%
 #' J'ajoute le résultat de cette détection de bord à l'image originelle. (Les bords détectés
 #' apparaissent en vert sur l'image de départ)
 
-# TODO
+GREEN_COLOR_PIXEL = [0, 255, 0]
+image_with_edges = image.copy()
+image_with_edges[image_convolved > 20] = GREEN_COLOR_PIXEL
+
+plt.imshow(image_with_edges)
+plt.show()
 
 # %%
 #' J'essaye d'utiliser la fonction `Canny` pour comparer.
 
-# TODO
+image_greyscale_smoothed = np.uint8(image_greyscale_smoothed)
+edges = cv2.Canny(image_greyscale_smoothed, 20, 200)
+image_with_canny_edges = image.copy()
+image_with_canny_edges[edges >= 20] = GREEN_COLOR_PIXEL
+plt.imshow(image_with_canny_edges)
+plt.show()
 
 # %%
 #' ## Export et fin pour OpenCV
 #'
 #' Je sais exporter cette belle image en utilisant cv2.
 
-# TODO
+cv2.imwrite(
+    os.path.join("images", "output.png"),
+    cv2.cvtColor(image_with_canny_edges, cv2.COLOR_RGB2BGR),
+)
 
 # %%
 #' ## Un  petit tour sur PIL
@@ -179,44 +228,57 @@ from matplotlib import pyplot as plt
 #' en tableau `Numpy` pour avoir accès au valeurs.
 #'
 #' Je sais charger et afficher une image avec PIL.
-
-# TODO
+pil_image = Image.open(IMAGE_PATH)
+pil_image.show()
 
 # %%
 #' Je sais que PIL permet aussi retourner et transposer une image.
 
-# TODO
+pil_image.transpose(Image.ROTATE_180).show()
+pil_image.transpose(Image.TRANSPOSE).show()
 
 # %%
 #' Je sais croper une partie de l'image, la réduire et l'intégrer dans l'image originelle, je note
 #' la différence de traitement qu'avec `OpenCV`.
 
-# TODO
+pil_image_cropped = pil_image.crop(
+    (100, 150, 400, 450)
+)  # we use a bounding box here, defined by two points
+pil_image_resized = pil_image_cropped.resize((100, 100))
+pil_image_copy = pil_image.copy()
+paste_offset = (100, 100)
+pil_image_copy.paste(pil_image_resized, paste_offset)
+pil_image_copy.show()
 
 # %%
 #' Je sais séparer les différents canaux d'une image.
 
-# TODO
+(pil_red_channel, pil_green_channel, pil_blue_channel) = pil_image.split()
+pil_blue_channel.show()
 
 # %%
 #' Je sais assombrir l'image en utilisant la méthode `.point` de l'image.
 
-# TODO
+dark_image = pil_image.point(lambda p: p > 120 and 255)
+dark_image.show()
+
 
 # %%
 #' Je sais appliquer un filtre de détection de bord
 
-# TODO
+pil_image_with_edges = pil_image.filter(ImageFilter.FIND_EDGES)
+pil_image_with_edges.show()
 
 # %%
 #' Je sais sauvegarder cette image
 
-# TODO
+pil_image_with_edges.save(os.path.join("images", "output_pil.jpeg"), "JPEG")
 
 # %%
 #' Je sais passer d'une image PIL à un array numpy et inversement.
 
-# TODO
+numpy_array = np.array(pil_image)
+pil_image = Image.fromarray(numpy_array)
 
 # %%
 #' ### Bravo !
